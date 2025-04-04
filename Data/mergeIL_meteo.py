@@ -12,12 +12,6 @@ def combine_datasets(file1, file2, file3, file4, output_file):
     df4 = df4[df4['Parameter Name'] == 'Wind Speed - Resultant']
     df5 = df5[df5['Parameter Name'] == 'Wind Direction - Resultant']
 
-    # Filter Daily_CO dataset for Pollutant Standard = 'CO 8-hour 1971'
-    # df3 = df3[df3['Pollutant Standard'] == 'CO 8-hour 1971']
-    
-    # Filter Daily_SO2 dataset for Pollutant Standard = 'SO2 1-hour 2010'
-    # df2 = df2[df2['Pollutant Standard'] == 'SO2 1-hour 2010']
-
     # Select the relevant columns and rename them for each dataset
     df1 = df1[['State Name', 'County Name', 'Date Local', 'Local Site Name', 'Arithmetic Mean', '1st Max Value', '1st Max Hour']].rename(
         columns={'Arithmetic Mean': 'Arithmetic Mean_PRESS', '1st Max Value': '1st Max Value_PRESS', '1st Max Hour': '1st Max Hour_PRESS'})
