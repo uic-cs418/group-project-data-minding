@@ -26,9 +26,6 @@ This project analyzes and models Air Quality Index (AQI) data across 24 U.S. sta
 
 ## Requirements
 - Python 3.8+
-- pandas, scikit-learn, matplotlib, seaborn
+- pandas, scikit-learn, matplotlib, seaborn, numpy
 
 ---
-
-*Author: [Your Name]*  
-*Institution: [Your University or Course Info]*  
