@@ -157,3 +157,136 @@ def perform_eda(file_path):
     plt.show()
 
     return summary
+
+# Function to visualize the impact of temperature and ozone on AQI
+def visual_1(df):
+   def visual_1(df):
+  # Drop missing values
+    df = df.dropna(subset=['Arithmetic Mean_TEMP', 'Arithmetic Mean_ozone'])
+
+    # Create categories
+    df['Temp_Level'] = pd.qcut(df['Arithmetic Mean_TEMP'], 2, labels=['Low', 'High'])
+    df['Ozone_Level'] = pd.qcut(df['Arithmetic Mean_ozone'], 2, labels=['Low', 'High'])
+    df['Combo'] = df['Temp_Level'].astype(str) + ' Temp & ' + df['Ozone_Level'].astype(str) + ' Ozone'
+
+    # Group for line plot
+    combo_mean = df.groupby('Combo')['AQI'].mean().reset_index()
+
+    # Plotting
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Heatmap
+    pivot_table = df.pivot_table(values='AQI',
+                                 index=pd.qcut(df['Arithmetic Mean_TEMP'], 4, labels=['Low', 'Moderate', 'High', 'Very High']),
+                                 columns=pd.qcut(df['Arithmetic Mean_ozone'], 4, labels=['Low', 'Moderate', 'High', 'Very High']),
+                                 aggfunc='mean')
+    sns.heatmap(pivot_table, annot=True, cmap='coolwarm', fmt='.1f', ax=axes[0], cbar_kws={'label': 'Average AQI'})
+    axes[0].set_title('Heatmap: AQI by Temp & Ozone Quartiles')
+    axes[0].set_xlabel('Ozone Quartile')
+    axes[0].set_ylabel('Temperature Quartile')
+
+    # Line plot (trend)
+    sns.lineplot(x='Combo', y='AQI', data=combo_mean, marker='o', ax=axes[1])
+    axes[1].set_title('Line Plot: AQI by Temp & Ozone Levels')
+    axes[1].set_ylabel('Average AQI')
+    axes[1].set_xlabel('Condition Group')
+    axes[1].tick_params(axis='x', rotation=15)
+    
+    plt.tight_layout()
+    plt.show()
+
+# Function to visualize seasonal variation in AQI
+def visual_2(df):
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Month'] = df['Date'].dt.month
+    df['Season'] = df['Month'].map({
+        12: 'Winter', 1: 'Winter', 2: 'Winter',
+        3: 'Spring', 4: 'Spring', 5: 'Spring',
+        6: 'Summer', 7: 'Summer', 8: 'Summer',
+        9: 'Fall', 10: 'Fall', 11: 'Fall'
+    })
+
+    season_order = ['Winter', 'Spring', 'Summer', 'Fall']
+    plt.figure(figsize=(12, 7))
+    sns.boxplot(x='Season', y='AQI', data=df, order=season_order, palette='coolwarm')
+    plt.title('Seasonal Variation in AQI Levels', fontsize=16)
+    plt.xlabel('Season', fontsize=14)
+    plt.ylabel('Air Quality Index (AQI)', fontsize=14)
+
+   
+    medians = df.groupby("Season")["AQI"].median().reindex(season_order)
+    for i, median in enumerate(medians):
+        plt.text(i, median + 1, f'{median:.0f}', ha='center', fontsize=10, color='black')
+
+    plt.figtext(0.5, -0.1, 
+                "Summer shows the highest median AQI, indicating that hot weather worsens air quality more than other seasons.", 
+                ha="center", fontsize=10)
+    plt.grid(axis='y')
+    plt.tight_layout()
+    plt.show()
+
+# Function to visualize the relationship between AQI and socioeconomic factors
+def visual_3(df):
+    # Drop missing values
+    df = df.dropna(subset=['AQI', 'Median_Income', 'Unemployment_Rate', 'Poverty_Rate'])
+    
+    # Create a figure with 3 subplots
+    plt.figure(figsize=(15, 10))
+
+    # 1. First plot: Average AQI by Income Group
+    # Create income groups
+    income_bins = [55000, 70000, 85000, 100000, 125000]
+    income_labels = ['$55k-70k', '$70k-85k', '$85k-100k', '$100k-125k']
+    df['Income_Group'] = pd.cut(df['Median_Income'], bins=income_bins, labels=income_labels)
+
+    # Calculate mean AQI per income group
+    aqi_by_income = df.groupby('Income_Group')['AQI'].mean().reset_index()
+
+    plt.subplot(1, 3, 1)
+    sns.barplot(x='Income_Group', y='AQI', data=aqi_by_income, palette='Blues')
+    plt.title('Average AQI by Income Group', fontsize=14)
+    plt.xlabel('Median Income', fontsize=12)
+    plt.ylabel('Average Air Quality Index', fontsize=12)
+    plt.ylim(0, 80)  # Set consistent y-axis range
+
+    # 2. Second plot: Average AQI by Unemployment Rate Group
+    # Create unemployment rate groups
+    unemployment_bins = [2, 3, 4, 5, 6, 7, 8]
+    unemployment_labels = ['2-3%', '3-4%', '4-5%', '5-6%', '6-7%', '7-8%']
+    df['Unemployment_Group'] = pd.cut(df['Unemployment_Rate'], bins=unemployment_bins, labels=unemployment_labels)
+
+    # Calculate mean AQI per unemployment group
+    aqi_by_unemployment = df.groupby('Unemployment_Group')['AQI'].mean().reset_index()
+
+    plt.subplot(1, 3, 2)
+    sns.barplot(x='Unemployment_Group', y='AQI', data=aqi_by_unemployment, palette='Greens')
+    plt.title('Average AQI by Unemployment Rate', fontsize=14)
+    plt.xlabel('Unemployment Rate', fontsize=12)
+    plt.ylabel('Average Air Quality Index', fontsize=12)
+    plt.ylim(0, 80) 
+
+    # 3. Third plot: Average AQI by Poverty Rate Group
+    # Create poverty rate groups
+    poverty_bins = [4, 6, 8, 10, 12, 14, 16]
+    poverty_labels = ['4-6%', '6-8%', '8-10%', '10-12%', '12-14%', '14-16%']
+    df['Poverty_Group'] = pd.cut(df['Poverty_Rate'], bins=poverty_bins, labels=poverty_labels)
+
+    # Calculate mean AQI per poverty group
+    aqi_by_poverty = df.groupby('Poverty_Group')['AQI'].mean().reset_index()
+
+    plt.subplot(1, 3, 3)
+    sns.barplot(x='Poverty_Group', y='AQI', data=aqi_by_poverty, palette='Reds')
+    plt.title('Average AQI by Poverty Rate', fontsize=14)
+    plt.xlabel('Poverty Rate', fontsize=12)
+    plt.ylabel('Average Air Quality Index', fontsize=12)
+    plt.ylim(0, 80) 
+
+    plt.suptitle('Relationship Between Air Quality and Socioeconomic Factors', fontsize=18, y=0.98)
+
+    plt.figtext(0.5, 0.01, 
+        "AQI Scale: 0-50 (Good), 51-100 (Moderate), 101-150 (Unhealthy for Sensitive Groups), 151+ (Unhealthy)\n" +
+        "Higher AQI values indicate worse air quality", 
+        ha="center", fontsize=12, bbox={"facecolor":"lightgrey", "alpha":0.5, "pad":5})
+
+    plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+    plt.show()
