@@ -159,8 +159,7 @@ def perform_eda(file_path):
     return summary
 
 # Function to visualize the impact of temperature and ozone on AQI
-def visual_1(df):
-   def visual_1(df):
+def temp_ozone_visual(df):
   # Drop missing values
     df = df.dropna(subset=['Arithmetic Mean_TEMP', 'Arithmetic Mean_ozone'])
 
@@ -196,7 +195,7 @@ def visual_1(df):
     plt.show()
 
 # Function to visualize seasonal variation in AQI
-def visual_2(df):
+def seasonal_aqi_visual(df):
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df['Month'] = df['Date'].dt.month
     df['Season'] = df['Month'].map({
@@ -226,67 +225,90 @@ def visual_2(df):
     plt.show()
 
 # Function to visualize the relationship between AQI and socioeconomic factors
-def visual_3(df):
+def socioeconomic_aqi_visuals(df):
     # Drop missing values
     df = df.dropna(subset=['AQI', 'Median_Income', 'Unemployment_Rate', 'Poverty_Rate'])
-    
-    # Create a figure with 3 subplots
-    plt.figure(figsize=(15, 10))
 
-    # 1. First plot: Average AQI by Income Group
-    # Create income groups
+    # Compute medians
+    poverty_median = df['Poverty_Rate'].median()
+    unemployment_median = df['Unemployment_Rate'].median()
+
+    # Classify into 4 socio groups
+    def classify_stress(row):
+        if row['Poverty_Rate'] >= poverty_median and row['Unemployment_Rate'] >= unemployment_median:
+            return 'High Poverty & High Unemp.'
+        elif row['Poverty_Rate'] >= poverty_median and row['Unemployment_Rate'] < unemployment_median:
+            return 'High Poverty & Low Unemp.'
+        elif row['Poverty_Rate'] < poverty_median and row['Unemployment_Rate'] >= unemployment_median:
+            return 'Low Poverty & High Unemp.'
+        else:
+            return 'Low Poverty & Low Unemp.'
+
+    df['Socio_Group'] = df.apply(classify_stress, axis=1)
+
+    # Aggregate AQI stats by socio group
+    group_stats = df.groupby('Socio_Group')['AQI'].agg(['mean', 'std']).reset_index()
+    group_stats = group_stats.sort_values(by='mean', ascending=False)
+
+    # Create subplot layout
+    fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+
+    # Top-left: Socioeconomic stress group bar plot
+    bar = sns.barplot(
+        x='Socio_Group', y='mean', data=group_stats,
+        palette='Spectral', edgecolor='black', ax=axes[0, 0]
+    )
+    axes[0, 0].set_title('Average AQI by Socioeconomic Stress Groups\n(Poverty + Unemployment)', fontsize=14)
+    axes[0, 0].set_xlabel('Socioeconomic Stress Group')
+    axes[0, 0].set_ylabel('Average AQI')
+    axes[0, 0].tick_params(axis='x', rotation=10)
+    axes[0, 0].grid(axis='y', linestyle='--', alpha=0.5)
+
+    # Income grouping
     income_bins = [55000, 70000, 85000, 100000, 125000]
     income_labels = ['$55k-70k', '$70k-85k', '$85k-100k', '$100k-125k']
     df['Income_Group'] = pd.cut(df['Median_Income'], bins=income_bins, labels=income_labels)
-
-    # Calculate mean AQI per income group
     aqi_by_income = df.groupby('Income_Group')['AQI'].mean().reset_index()
 
-    plt.subplot(1, 3, 1)
-    sns.barplot(x='Income_Group', y='AQI', data=aqi_by_income, palette='Blues')
-    plt.title('Average AQI by Income Group', fontsize=14)
-    plt.xlabel('Median Income', fontsize=12)
-    plt.ylabel('Average Air Quality Index', fontsize=12)
-    plt.ylim(0, 80)  # Set consistent y-axis range
+    sns.barplot(x='Income_Group', y='AQI', data=aqi_by_income, palette='Blues', ax=axes[0, 1])
+    axes[0, 1].set_title('Average AQI by Income Group', fontsize=14)
+    axes[0, 1].set_xlabel('Median Income')
+    axes[0, 1].set_ylabel('Average AQI')
+    axes[0, 1].set_ylim(0, 80)
+    axes[0, 1].grid(axis='y', linestyle='--', alpha=0.5)
 
-    # 2. Second plot: Average AQI by Unemployment Rate Group
-    # Create unemployment rate groups
+    # Unemployment grouping
     unemployment_bins = [2, 3, 4, 5, 6, 7, 8]
     unemployment_labels = ['2-3%', '3-4%', '4-5%', '5-6%', '6-7%', '7-8%']
     df['Unemployment_Group'] = pd.cut(df['Unemployment_Rate'], bins=unemployment_bins, labels=unemployment_labels)
-
-    # Calculate mean AQI per unemployment group
     aqi_by_unemployment = df.groupby('Unemployment_Group')['AQI'].mean().reset_index()
 
-    plt.subplot(1, 3, 2)
-    sns.barplot(x='Unemployment_Group', y='AQI', data=aqi_by_unemployment, palette='Greens')
-    plt.title('Average AQI by Unemployment Rate', fontsize=14)
-    plt.xlabel('Unemployment Rate', fontsize=12)
-    plt.ylabel('Average Air Quality Index', fontsize=12)
-    plt.ylim(0, 80) 
+    sns.barplot(x='Unemployment_Group', y='AQI', data=aqi_by_unemployment, palette='Greens', ax=axes[1, 0])
+    axes[1, 0].set_title('Average AQI by Unemployment Rate', fontsize=14)
+    axes[1, 0].set_xlabel('Unemployment Rate')
+    axes[1, 0].set_ylabel('Average AQI')
+    axes[1, 0].set_ylim(0, 80)
+    axes[1, 0].grid(axis='y', linestyle='--', alpha=0.5)
 
-    # 3. Third plot: Average AQI by Poverty Rate Group
-    # Create poverty rate groups
+    # Poverty grouping
     poverty_bins = [4, 6, 8, 10, 12, 14, 16]
     poverty_labels = ['4-6%', '6-8%', '8-10%', '10-12%', '12-14%', '14-16%']
     df['Poverty_Group'] = pd.cut(df['Poverty_Rate'], bins=poverty_bins, labels=poverty_labels)
-
-    # Calculate mean AQI per poverty group
     aqi_by_poverty = df.groupby('Poverty_Group')['AQI'].mean().reset_index()
 
-    plt.subplot(1, 3, 3)
-    sns.barplot(x='Poverty_Group', y='AQI', data=aqi_by_poverty, palette='Reds')
-    plt.title('Average AQI by Poverty Rate', fontsize=14)
-    plt.xlabel('Poverty Rate', fontsize=12)
-    plt.ylabel('Average Air Quality Index', fontsize=12)
-    plt.ylim(0, 80) 
+    sns.barplot(x='Poverty_Group', y='AQI', data=aqi_by_poverty, palette='Reds', ax=axes[1, 1])
+    axes[1, 1].set_title('Average AQI by Poverty Rate', fontsize=14)
+    axes[1, 1].set_xlabel('Poverty Rate')
+    axes[1, 1].set_ylabel('Average AQI')
+    axes[1, 1].set_ylim(0, 80)
+    axes[1, 1].grid(axis='y', linestyle='--', alpha=0.5)
 
-    plt.suptitle('Relationship Between Air Quality and Socioeconomic Factors', fontsize=18, y=0.98)
-
-    plt.figtext(0.5, 0.01, 
-        "AQI Scale: 0-50 (Good), 51-100 (Moderate), 101-150 (Unhealthy for Sensitive Groups), 151+ (Unhealthy)\n" +
-        "Higher AQI values indicate worse air quality", 
-        ha="center", fontsize=12, bbox={"facecolor":"lightgrey", "alpha":0.5, "pad":5})
+    plt.suptitle('Air Quality Index (AQI) by Socioeconomic Conditions', fontsize=18, y=0.98)
+    plt.figtext(0.5, 0.01,
+        "AQI Scale: 0–50 (Good), 51–100 (Moderate), 101–150 (Unhealthy for Sensitive Groups), 151+ (Unhealthy)\n"
+        "Higher AQI values indicate worse air quality.",
+        ha="center", fontsize=12, bbox={"facecolor": "lightgrey", "alpha": 0.5, "pad": 5}
+    )
 
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
     plt.show()
