@@ -312,3 +312,136 @@ def socioeconomic_aqi_visuals(df):
 
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
     plt.show()
+
+
+# --------- MACHINE LEARNING FUNCTIONS --------- #
+
+
+
+# --------- BASELINE, LINEAR REGRESSION, EXACT AQI -------- #
+
+def baseline_linear_reg():
+    df = pd.read_csv("data/Merged_AQI_Income_Poverty_Unemployment_Livability.csv")
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.sort_values("Date")
+    
+    # the target is tomorrow's AQI
+    df["AQI_1d"] = df["AQI"].shift(-1)
+    df = df.dropna(subset=["AQI", "AQI_1d"])
+
+    X = df[["AQI"]].values # today's AQI
+    y = df["AQI_1d"].values # tomorrow's AQI
+    
+    #fit the model
+    model = LinearRegression()
+    model.fit(X, y)
+    pred = model.predict(X)
+    
+    #evaluate the performance
+    lr_mse = mean_squared_error(y, pred)
+    lr_r2 = r2_score(y, pred)
+    
+    print("Linear Regression Model:")
+    print("R2 Score:", lr_r2)
+    print(f"RMSE: {math.sqrt(lr_mse)} AQI units")
+
+
+# --------- RANDOM FOREST, CATEGORY PREDICTION -------- #
+
+def engineer(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.sort_values("Date")
+
+    # encodes the day of the year as sine and cosine values
+    df["doy"] = df["Date"].dt.dayofyear
+    df["sin_doy"] = np.sin(2 * np.pi * df["doy"] / 365)
+    df["cos_doy"] = np.cos(2 * np.pi * df["doy"] / 365)
+
+    #computes the 3-day and 7-day rolling averages of AQI
+    df["AQI_roll3"] = df["AQI"].rolling(3).mean()
+    df["AQI_roll7"] = df["AQI"].rolling(7).mean()
+
+    #calculates 3-day rolling averages of ozone and NO2
+    df["Arithmetic Mean_ozone_roll3"] = df["Arithmetic Mean_ozone"].rolling(3).mean()
+    df["Arithmetic Mean_no2_roll3"] = df["Arithmetic Mean_no2"].rolling(3).mean()
+
+    #creates target columns for AQI 1, 2, and 3 days into the future
+    df["AQI_1d"] = df["AQI"].shift(-1)
+    df["AQI_2d"] = df["AQI"].shift(-2)
+    df["AQI_3d"] = df["AQI"].shift(-3)
+
+    #drops rows with missing values and returns
+    return df.dropna()
+
+def load_data(file_path: str) -> pd.DataFrame:
+    return pd.read_csv(file_path)
+
+# splits the function into training, validation, and test sets (60-20-20)
+def temporal_split(df: pd.DataFrame):
+    n = len(df)
+    train = df.iloc[:int(0.6 * n)]
+    val = df.iloc[int(0.6 * n):int(0.8 * n)]
+    test = df.iloc[int(0.8 * n):]
+    return train, val, test
+
+def predict_categories():
+    
+    # turn the predicted AQI into a score between 0-5 that corresponds to each EPA AQI category
+    def aqi_to_cat_idx(aqi: float) -> int:
+        if aqi <= 50:
+            return 0
+        if aqi <= 100:
+            return 1
+        if aqi <= 150:
+            return 2
+        if aqi <= 200:
+            return 3
+        if aqi <= 300:
+            return 4
+        return 5
+
+    
+    file = Path("data/Merged_AQI_Income_Poverty_Unemployment_Livability.csv")
+    seed = 36
+    days_in_adv = {1: "1d", 2: "2d", 3: "3d"}
+    categories = ["Good", "Moderate", "Unhealthy for Sens. Groups", "Unhealthy", "Very Unhealthy", "Hazardous"]
+    features = ["AQI_roll3", "AQI_roll7", "Arithmetic Mean_ozone_roll3", "Arithmetic Mean_no2_roll3", "Arithmetic Mean_TEMP", "Arithmetic Mean_RH_DP", "Arithmetic Mean_WIND_SPEED", "sin_doy", "cos_doy"]
+    nameMap = {"1d": "in ONE day", "2d": "in TWO days", "3d": "in THREE days"}
+
+    # turn the file into a dataframe, then split it up into training, validation and test sets
+    df = engineer(load_data(file))
+    train, val, test = temporal_split(df)
+
+    pre = ColumnTransformer([("num", StandardScaler(), features)])
+    rf = RandomForestClassifier(n_estimators = 600, max_depth = 13, class_weight = "balanced", n_jobs = -1, random_state = seed)
+    pipe = Pipeline([("pre", pre), ("clf", rf)])
+
+    # train one model per day (x3)
+    print("Training category models …")
+    models: dict[str, Pipeline] = {}
+    for tag in days_in_adv.values():
+        y_train = train[f"AQI_{tag}"].apply(aqi_to_cat_idx)
+        models[tag] = pipe.fit(train[features], y_train)
+    print("Done.\n")
+
+
+    def within_one_acc(y_true: pd.Series, y_pred: np.ndarray) -> float:
+        return np.mean(np.abs(y_true - y_pred) <= 1)
+    
+    # run the evaluation
+    def evaluate(split_name: str, frame: pd.DataFrame) -> None:
+        print(f"== {split_name} split ==")
+        for num in days_in_adv.values():
+            
+            y_true = frame[f"AQI_{num}"].apply(aqi_to_cat_idx)
+            y_pred = models[num].predict(frame[features])
+            acc_exact = accuracy_score(y_true, y_pred)
+            acc_one = within_one_acc(y_true, y_pred)
+    
+            #print out the results
+            print(f"{num}  Exact accuracy = {acc_exact:.3f}, "f"Within-1 accuracy = {acc_one:.3f}, "f"— predicting category {nameMap[num]}")
+        print()
+    
+    for name, split_df in [("Validation", val), ("Test", test)]:
+        evaluate(name, split_df)
