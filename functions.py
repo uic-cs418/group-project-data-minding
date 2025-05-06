@@ -9,6 +9,13 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
+from pathlib import Path
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+
 # Function to load datasets from a dictionary of filenames
 def load_datasets(file_dict):
     return {name: pd.read_csv(path) for name, path in file_dict.items()}
