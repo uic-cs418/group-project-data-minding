@@ -96,6 +96,28 @@ def combine_all_data(file1, file2, file3, output_file):
     merged_df.to_csv(output_file, index=False)
     print(f"Saved: {output_file}")
 
+def get_common_states(file1, file2):
+    # Read both CSV files into DataFrames
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    
+    # Extract unique state names from both DataFrames
+    states1 = df1['State Name'].unique()
+    states2 = df2['State Name'].unique()
+    
+    # Initialize an empty list to hold common states
+    common_states = []
+    
+    # Use a for loop to find states present in both lists
+    for state in states1:
+        if state in states2 and state not in common_states:
+            common_states.append(state)
+    
+    # Sort the list for consistency
+    common_states.sort()
+    
+    return common_states
+
 # Function to filter states based on predefined list
 def filter_common_states(filename, output_name):
     common_states = ['Arizona', 'California', 'Connecticut', 'Georgia', 'Idaho', 'Illinois', 'Indiana', 'Louisiana',
@@ -108,6 +130,15 @@ def filter_common_states(filename, output_name):
     output_file = f"24StateAQI_{year}.csv"
     filtered.to_csv(output_file, index=False)
     print(f"Saved filtered state file: {output_file}")
+
+# Funcionts to combine csv files
+def combine_csv_files(file1, file2, output_file):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+
+    combined_df = pd.concat([df1, df2], ignore_index=True)
+
+    combined_df.to_csv(output_file, index=False)
 
 # Function to merge AQI data with socioeconomic data
 def merge_aqi_socioeconomic():
