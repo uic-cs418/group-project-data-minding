@@ -280,7 +280,8 @@ def temp_ozone_visual(df):
     combo_mean = df.groupby('Combo')['AQI'].mean().reset_index()
 
     # Plotting
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5)) 
+
 
     # Heatmap
     pivot_table = df.pivot_table(values='AQI',
@@ -314,7 +315,7 @@ def seasonal_aqi_visual(df):
     })
 
     season_order = ['Winter', 'Spring', 'Summer', 'Fall']
-    plt.figure(figsize=(12, 7))
+    plt.figure(figsize=(8, 5))  
     sns.boxplot(x='Season', y='AQI', data=df, order=season_order, palette='coolwarm')
     plt.title('Seasonal Variation in AQI Levels', fontsize=16)
     plt.xlabel('Season', fontsize=14)
@@ -359,7 +360,7 @@ def socioeconomic_aqi_visuals(df):
     group_stats = group_stats.sort_values(by='mean', ascending=False)
 
     # Create subplot layout
-    fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
 
     # Top-left: Socioeconomic stress group bar plot
     bar = sns.barplot(
@@ -628,3 +629,89 @@ def county_level_monthly_model_comparison():
     print("\n===== Average RMSE across counties =====")
     for c in ['Baseline_RMSE','ARIMAX_RMSE','RF_RMSE']:
         print(f"{c}: {res_df[c].mean():.2f}")
+
+def eda_2023():
+    print("Analysis of Air Quality and Socioeconomic Factors Dataset between 2023 and 2024 dataset")
+        
+    df_2023 = pd.read_csv('Merged_AQI_Income_Poverty_Unemployment_Livability.csv')
+
+    # Descriptive data
+    desc_stats = df_2023.describe()
+    print("Descriptive Statistics:")
+    print(desc_stats)
+
+    # Mode 
+    mode = df_2023.mode().iloc[0]
+    print("\nMode:")
+    print(mode)
+
+    # Variance
+    df_numeric = df_2023.select_dtypes(include=['number'])  # only the columns with the numbers
+    variance = df_numeric.var()
+    print("\nVariance:")
+    print(variance)
+
+    # Null Val
+    null_values = df_2023.isnull().sum()
+    print("\nNumber of null values in each column:")
+    print(null_values)
+
+    total_null_values = df_2023.isnull().sum().sum()
+    print("\nTotal number of null values in the whole dataset:")
+    print(total_null_values)
+    ['mean'],
+
+def socio_eda():
+    # Correct grouping based on 'Livability'
+    livability_counts = df_2023['Livability'].value_counts()
+    print("\nNumber of counties by Livability:")
+    print(livability_counts)
+
+    # Calculate mean values grouped by Livability
+    livability_means = df_2023.groupby('Livability')[['AQI', 'Median_Income', 'Unemployment_Rate', 'Poverty_Rate']].mean()
+    print("\nMean AQI, Median Income, Unemployment Rate, and Poverty Rate by Livability:")
+    print(livability_means)
+
+    # (Optional) Median values if needed
+    livability_medians = df_2023.groupby('Livability')[['AQI', 'Median_Income', 'Unemployment_Rate', 'Poverty_Rate']].median()
+    print("\nMedian AQI, Median Income, Unemployment Rate, and Poverty Rate by Livability:")
+    print(livability_medians)
+
+
+def eda_visual1():
+    # Map for cleaner names
+    readable_labels = {
+        'AQI': 'Air Quality Index (AQI)',
+        'Arithmetic Mean_TEMP': 'Temperature (°F)',
+        'Arithmetic Mean_RH_DP': 'Humidity (%)'
+    }
+   
+    corr_columns = ['AQI', 'Arithmetic Mean_TEMP', 'Arithmetic Mean_RH_DP']
+    # Rename columns temporarily
+    corr_data = df[corr_columns].dropna().rename(columns=readable_labels)
+
+    # Recompute correlation
+    corr_matrix = corr_data.corr()
+
+    # Plot again
+    plt.figure(figsize=(4.5, 4))
+    sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap='coolwarm', square=True)
+    plt.title('Correlation Between AQI and Environmental Factors')
+    plt.xticks(rotation=45)  # Rotate if needed
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.show()
+
+def eda_visual2():
+    df = pd.read_csv('data/Merged_AQI_Income_Poverty_Unemployment_Livability.csv')
+    sns.set(style="whitegrid")
+    fig, axes = plt.subplots(2, 2, figsize=(9, 7))
+    features = ['AQI', 'Median_Income', 'Unemployment_Rate', 'Poverty_Rate']
+    for ax, feature in zip(axes.flatten(), features):
+        sns.boxplot(x='Livability', y=feature, data=df, ax=ax)
+        ax.set_title(f'{feature} by Livability')
+        ax.set_xlabel('Livability')
+        ax.set_ylabel(feature)
+
+    plt.tight_layout()
+    plt.show()
